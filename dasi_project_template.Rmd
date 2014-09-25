@@ -1,0 +1,226 @@
+<!-- Make sure that the knitr package is installed and loaded. -->
+<!-- For more info on the package options see http://yihui.name/knitr/options -->
+
+<!-- Replace below with the title of your project -->
+### Analysis of violent crimes by police force area
+
+<!-- Enter the code required to load your data in the space below. The data will be loaded but the line of code won't show up in your write up (echo=FALSE) in order to save space-->
+```{r echo=FALSE}
+data <- read.csv('police_force_data', header = TRUE)
+```
+
+<!-- In the remainder of the document, add R code chunks as needed -->
+
+### Introduction:
+
+There are 45 police forces in England, Wales and Northern Ireland (data for Scotland is published separately, and so is excluded from this study), which vary considerably in their size, geographic area and the population for which they are responsible. The largest, the Metropolitan Police Force (responsible for most of the greater London area) has over 33,000 officers and a budget of over £2.5 billion. The smallest, the City of London Police (responsible for the City of London - not to be confused with London as a whole!) has 852 officers. In terms of geographic area, the largest police force is Dyfed Powys which covers almost 11,000 sq km of Wales. The smallest (again, City of London Police) has a geographic remit of only 2.6 sq km of central London. A few police forces, such as the British Transport Police do not have a defined geographic remit.
+
+It is likely that this variation means that different forces have to manage both different volumes of crime, and different types of crime. The aim of this project is to test whether different police forces deal with different ammounts of violent crime, as a proportion of all crime in each area. The variables in this study are both categorical variables, namely the police forces (45 levels, one for each force), and whether each crime was violent or non-violent. 'Violent' crime in this study is defined as crimes recorded by the police under the categories of 'violent crime', 'robbery' and 'public disorder and weapons'. 'Non-violent' crime is all other crimes and includes burglary, criminal damage, drugs, shoplifting and vehicle crime. 
+
+### Data:
+
+The data for this project were retrieved from http://data.police.uk. This website makes available data on all crimes recorded by police forces in England, Wales and Northern Ireland, including the type of offence (determined by the UK Home Office offence codes), and geographic coordinates where the offence was recorded. Also available are data on the outcome status of each crime. Further information about the provenance of this data can be found at http://data.police.uk/about/.
+
+For this project, I downloaded data for 2013 (which can be found at: http://data.police.uk/data/fetch/f056863b-fb01-4109-a8d8-ae561612757c/). Data are available from 2010 onwards. However, I chose to use one full calendar year as this represents a stratified sample, in the sense that data is sampled for each month, and there area likely to be seasonal variations in the level and types of crime. The data in this sample represent all crimes recorded by police forces in 2013, a total of 5,018,802 crimes. The population of interest is all crimes committed in the UK across all years.
+
+Police.uk provides the data in a .csv format with one row for each crime. The cases in this data are individual crimes reported by police forces. I used R to transform this data into counts of violent and non-violent crime for each force area. The code for this is quite lengthy, so I have provided it in an annex. The full data are given in the appendix.
+
+Since cases (crimes) are not randomly allocated to police forces, this is an observational study only. The data cannot be used to infer causality. This is discussed further in the conclusions. The results can only be generalised to other years on the assumption that patterns of violent crime are stable between police forces across time. This is a significant assumption and is discussed further below.
+
+### Exploratory data analysis:
+
+The graphs below show (1) the total number of crimes recorded by each police force; and (2) the total number of violent crimes recorded by each police force. From these it is clear that some forces record more crimes than others (notably the metropolitan police force), and that some forces report more violent crimes than others. This is unsurprising, given the differences in size of the different forces. The order of forces from left to right is the same as that in the table in the appendix.
+
+```{r fig.width = 11, echo=FALSE}
+par(mfrow = c(2,1))
+barplot(data$total, main = "1. Total Crime by Force", ylab = "No. of crimes recorded", xlab = "Force", col = "red")
+barplot(data$violent, main = "2. Total Violent Crime by Force", ylab = "No. of violent crimes recorded", xlab = "Force", col = "red")
+```
+To correct for the different volumes of crime, we can explore the proportion of violent crime reported by each force as follows:
+
+```{r}
+proportions <- data$violent/data$total
+data <- cbind(data, proportions)
+summary(proportions)
+```
+From this we can see that there is a lot of variation in the proportion of crimes that are reported that are violent, which ranges from around 2.3% to around 12.3%. 
+
+We can sort the data by the proportion of crime that is violent. 
+
+```{r sort data by proportion of violent crime}
+data_sort <- data[order(data$proportions, decreasing = TRUE),]
+head(data_sort)[,2:6]
+tail(data_sort)[,2:6]
+```
+Unsurprisingly, the police forces with the highest proportions of violent crime include major metropolitan forces (Metropolitan Police and West Midlands), Northern Ireland, which has the legacy of the Troubles. More surprisingly, the top five also include Devon and Cornwall (covering largely rural communities in the far south west of Britain) and British Transport Police. The latter result may arise because of the jurisdiction of the British Transport Police means that they deal with very few of some types of crime (e.g. burglary). Less surprisingly, the bottom five by proportion of crime that is violent all include large rural areas.
+
+Figure 3 shows the proportion of crime in each area which is violent. From this, it appears that some forces do record more violent crime than others (i.e. violent crime and police forces are dependent).
+
+```{r fig.width = 11, echo=FALSE}
+barplot(data$proportions[order(data$proportions, decreasing = TRUE)], main = "3. Proportion of Violent Crime by Force", ylab = "Proportion of violent crimes recorded", xlab = "Force", col = "red")
+```
+
+
+### Inference:
+
+The hypothesis to be tested is whether the proportion of violent crimes is different between police forces. The null hypothesis is that there is no difference between the proportions of violent crimes, and apparent differences are the result of sampling variability. Since both police force and type of crime are categorical variables, the appropriate statistical test is the Chi-squared test of independence. This will test whether the observed variation in proportions of violent crimes in forces is likely to have arisen by chance, if in fact the proportion of violent crimes is the same. 
+
+The conditions for the Chi-square test of independence are: (1) a random sample / assignment; (2) n < 10% of the population; (3) each case only contributes to one cell in the table; and (4) each cell should have at least 5 expected successes. Looking at the data, we can see that (1) may not apply: I have selected all crimes from a single year. It is possible that changes in crime over time may affect different forces differently. For the purposes of this project, I will assume that (1) applies, but care will have to be taken in interpreting the results. Condition (2) applies because one year's data is less than 10% of all years. Condition (3) holds because each crime is only recorded by one force. 
+
+To check condition (4), we need to calculate the expected number of successes and failures for each cell. This is given by expected = row total x column total / table total. This is equivalent to calculating the overall proportion of violent crimes and non-violent crimes across all forces (column total / table total) and multiplying by the number of crimes recorded by each force (row totals). The table below shows the expected counts of violent and non-violent crime by each force.
+
+```{r overall proportion of crimes that are violent}
+mean(data$proportions)
+```
+
+From this we can see that about 5.5% of crimes recorded are violent. Because crime type is binary (i.e. violent or non-violent), the proportion of crimes that are non-violent is about 94.5%. We can use this to generate expected counts as follows:
+
+```{r expected counts}
+exp_violent <- data$total * mean(proportions)
+exp_non <- data$total * (1-mean(proportions))
+expected <- data.frame(data$force, exp_violent, exp_non)
+expected
+```
+
+From this table we can see that condition (4) is met.
+
+To perform the hypothesis test, we calculate the chi-squared statistic by summing the squared difference between the observed and expected counts for violent and non-violent crimes, dividing by the expected counts. We determine the probability of achieving an equal or greater chi-squared statistic using the chi-squared distribution with degrees of freedom given by (number of rows - 1) x (number of columns - 1), in this case (45 - 1) x (2 - 1) = 44. The test can be performed in R using the chisq.test function as follows
+ 
+```{r Chi-squared test}
+chisq.test(x = data[,3:4])
+```
+The test shows that the probability of observing the variability in violent crime seen in this sample if police forces do not vary in the amount of violent crime that they report is very small indeed. On this basis we can reject the null hypothesis and conclude that violent crime and police forces are dependent, that is they do vary in the proportion of crime that they report which is violent.
+
+### Conclusion:
+
+The data studied here appear to show that the proportion of crime reported that is violent does vary by police force. Since this was an observational study only, we cannot infer causation. It seems unlikely that the variation in the police forces themselves causes differing amounts of violence in the populations that they serve. It seems more likely that differences in a third factor, such as the populations themselves, varies between police force areas. As pointed out in the introduction, police forces in England, Wales and Northern Ireland vary substantially in their size and geographic area, and the populations they serve vary as a result. This variation could be in whether the population is predominantly rural or urban, or in relative levels of deprivation, or a number of other factors.
+
+However, it is important to remember that condition (1) was not met: the data was not a true random sample of reported crimes. The data are a complete sample of all violent crime reported in England, Wales and Northern Ireland in 2013. While this has the advantage of correcting for seasonal variations in crime, it is possible that changes in violent crime over time affect some police force areas differently than others. This means that care must be taken in generalising from the sample to the population. While it seems likely that patterns of violent crime would be relatively stable over time, the data used in this study provide no evidence for this, and further study would be required before the results could be confidently generalised to the population. This could be done by taking a sample of crimes from 2010 (the earliest year for which data is available on police.uk) and looking at trends over time.
+
+### Annex:
+
+More detail on the Home Office offence codes and on crime statistics in the UK can be found at https://www.gov.uk/government/uploads/system/uploads/attachment_data/file/116226/user-guide-crime-statistics.pdf.
+
+Below is the code that I used to transform the raw crime data into counts for each police force area. There are almost certainly more efficient ways to do this, and the code effectively represents my 'working' rather than a polished approach to this problem. Suggestions for better ways of doing this are welcome.
+
+```
+get_crime_data <- function(months = "all", forces = "all"){
+  force_list <- c(
+    "avon-and-somerset", "bedfordshire", "btp", "cambridgeshire", "cheshire",
+    "city-of-london", "cleveland", "cumbria", "derbyshire", "devon-and-cornwall",
+    "dorset", "durham", "dyfed-powys", "essex", "gloucestershire", "greater-manchester", "gwent",
+    "hampshire", "hertfordshire", "humberside", "kent", "lancashire", "leicestershire",
+    "lincolnshire", "merseyside", "metropolitan", "norfolk", "north-wales", "north-yorkshire",
+    "northamptonshire", "northern-ireland", "northumbria", "nottinghamshire", "south-wales",
+    "south-yorkshire", "staffordshire", "suffolk", "surrey", "sussex", "thames-valley",
+    "warwickshire", "west-mercia", "west-midlands", "west-yorkshire", "wiltshire"
+    )
+  month_list <- c(
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december"
+    )
+  month_paths <- c(
+    "2013-01/2013-01-", "2013-02/2013-02-", "2013-03/2013-03-", "2013-04/2013-04-",
+    "2013-05/2013-05-", "2013-06/2013-06-", "2013-07/2013-07-", "2013-08/2013-08-",
+    "2013-09/2013-09-", "2013-10/2013-10-", "2013-11/2013-11-", "2013-12/2013-12-"
+    )
+    
+  forces <- tolower(forces)
+  forces <- sub(pattern = " ", replacement = "-", x = forces)
+
+  # If months or forces  = 'all' 
+  if(months == "all"){
+    months <- c(1:12)
+  }
+  if(forces == "all"){
+    forces <- force_list
+  }
+  
+  # Initialise variables
+  month <- c()
+  force <- c()
+  anti_social_behaviour <- c()
+  burglary <- c()
+  criminal_damage_and_arson <- c()
+  drugs <- c()
+  other_crime <- c()
+  other_theft <- c()
+  public_disorder_and_weapons <- c()
+  robbery <- c()
+  shoplifting <- c()
+  vehicle_crime <- c()
+  violent_crime <- c()
+  
+  # Construct data frame
+  for(i in months){
+    for(j in forces){
+      path_base <- "~/Documents/R Projects/Crime_Stats/Crime_Data_2013/"
+      path_end <- "-street.csv"
+      path <- paste(path_base, month_paths[i], j, path_end, sep = "")
+      curr_data <- read.csv(path, stringsAsFactors = TRUE)
+      curr_crime_counts <- table(curr_data$Crime.type)
+      month <- c(month, month_list[i])
+      force <- c(force, j)
+      anti_social_behaviour <- c(anti_social_behaviour, curr_crime_counts["Anti-social behaviour"])
+      burglary <- c(burglary, curr_crime_counts["Burglary"])
+      criminal_damage_and_arson <- c(criminal_damage_and_arson, curr_crime_counts["Criminal damage and arson"])
+      drugs <- c(drugs, curr_crime_counts["Drugs"])
+      other_crime <- c(other_crime, curr_crime_counts["Other crime"])
+      other_theft <- c(other_theft, curr_crime_counts["Other theft"])
+      public_disorder_and_weapons <- c(public_disorder_and_weapons, curr_crime_counts["Public disorder and weapons"])
+      robbery <- c(robbery, curr_crime_counts["Robbery"])
+      shoplifting <- c(shoplifting, curr_crime_counts["Shoplifting"])
+      vehicle_crime <- c(vehicle_crime, curr_crime_counts["Vehicle crime"])
+      violent_crime <- c(violent_crime, curr_crime_counts["Violent crime"])
+    }
+  }
+  crime <- data.frame(
+    month, force, anti_social_behaviour, burglary, criminal_damage_and_arson, drugs, 
+    public_disorder_and_weapons, robbery, shoplifting, vehicle_crime, violent_crime,
+    other_crime, other_theft
+    )
+  
+  # Set NA values to 0
+  crime$anti_social_behaviour[is.na(crime$anti_social_behaviour)] <- 0
+  crime$burglary[is.na(crime$burglary)] <- 0
+  crime$criminal_damage_and_arson[is.na(crime$criminal_damage_and_arso)] <- 0
+  crime$drugs[is.na(crime$drugs)] <- 0
+  crime$public_disorder_and_weapons[is.na(crime$public_disorder_and_weapons)] <- 0
+  crime$robbery[is.na(crime$robbery)] <- 0
+  crime$shoplifting[is.na(crime$shoplifting)] <- 0
+  crime$vehicle_crime[is.na(crime$vehicle_crime)] <- 0
+  crime$violent_crime[is.na(crime$violent_crime)] <- 0
+  crime$other_crime[is.na(crime$other_crime)] <- 0
+  crime$other_theft[is.na(crime$other_theft)] <- 0
+  
+  # Return dataframe
+  return(crime)
+}
+
+crime <- get_crime_data()
+
+# Calculate proportion counts of violent and nonviolent crime
+violent_crime <- crime$violent_crime + crime$robbery + crime$public_disorder_and_weapons
+
+nonviolent_crime <- crime$anti_social_behaviour + crime$burglary + crime$criminal_damage_and_arson + 
+  crime$drugs + crime$shoplifting + crime$vehicle_crime + 
+  crime$other_crime + crime$other_theft
+
+all <- violent_crime + nonviolent_crime
+
+data <- data.frame(crime$month, crime$force, violent_crime, nonviolent_crime, all)
+names(data) <- c("month", "force", "violent", "nonviolent", "all")
+
+v <- c()
+n <- c()
+for(f in unique(data$force)){
+  temp_v <- sum(data$violent[data$force == f])
+  temp_n <- sum(data$nonviolent[data$force == f])
+  v <- c(v, temp_v)
+  n <- c(n, temp_n)
+}
+
+# Construct final project data frame
+project_data <- data.frame(unique(data$force), v, n)
+names(project_data) <- c("force", "violent", "non-violent")
+```
